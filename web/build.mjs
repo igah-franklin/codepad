@@ -26,8 +26,8 @@ const safe = (s) => s.replace(/<\/script/gi, '<\\/script');
 
 const editorHtml = `<!DOCTYPE html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<style>html,body{margin:0;padding:0;height:100%;background:#0E1117;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}#editor{height:100%}.cm-editor{height:100%}.cm-editor.cm-focused{outline:none}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>html,body{margin:0;padding:0;height:100%;background:#0D1117;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}#editor{height:100%}.cm-editor{height:100%}.cm-editor.cm-focused{outline:none}</style>
 </head><body><div id="editor"></div><script>${safe(editorJs)}</script></body></html>`;
 
 const runnerHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body><script>${safe(runnerJs)}</script></body></html>`;

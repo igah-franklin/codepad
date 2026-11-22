@@ -45,3 +45,4 @@ web/test-runner.html
 
 expo-env.d.ts
 # @end expo-cli
+web/.verify-entry.ts

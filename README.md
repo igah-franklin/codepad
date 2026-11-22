@@ -13,7 +13,9 @@ Codepad is a mobile code playground for iOS and Android, built with Expo and Rea
 - A time limit (5, 15 or 60 s) stops infinite loops. **Stop** ends a run immediately, and output is batched and capped so programs that print a lot don't slow the app down.
 - File manager with search, a JS/PY filter, pinning, rename, duplicate and delete. You can import `.py` and `.js` files, paste code from the clipboard, and share or export files.
 - 15 runnable examples: async/await, classes, sorting, input, NumPy, Pandas and Matplotlib
-- Dark, light and auto themes, font size, word wrap, line numbers, tab size and haptics
+- Dark, light and auto modes, with 13 dark color themes (GitHub Dark is the default). The theme covers both the app UI and syntax highlighting.
+- 10 editor fonts (JetBrains Mono, Fira Code with ligatures, Source Code Pro, IBM Plex Mono and more), plus font size, word wrap, line numbers, tab size and haptics
+- **Coding challenges**: 400 problems across four levels (Easy, Medium, Hard, Interview), with 10 modules of 10 problems each. Open a problem in Python or JavaScript, tap **Run**, and hidden tests check your solution. Every problem has reference solutions in both languages, a step-by-step explanation and its time/space complexity, and your progress is saved on the device.
 - Files are saved automatically on the device
 
 ## Run it
@@ -35,8 +37,16 @@ src/components/     CodeEditor (WebView), ConsoleView, KeyBar, shared UI
 src/runner.tsx      Hidden WebView that owns the JS and Python workers
 src/store.tsx       Files and settings (AsyncStorage)
 src/templates.ts    Example programs
+src/challenges/     Challenge data (data/<level>/<module>.ts), the test harness and the registry
 web/                Source for the editor and runner bundles
 src/web/*.ts        Generated bundles. Run `npm run build:web` after editing web/.
+```
+
+## Verifying the challenges
+Every reference solution runs through the real test harness in Node and CPython:
+```bash
+cd web && npm install && node verify-challenges.mjs          # all 400
+node verify-challenges.mjs medium/stacks                      # one module
 ```
 
 ## Notes

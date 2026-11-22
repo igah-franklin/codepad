@@ -27,27 +27,35 @@ const post = (msg) => {
 };
 
 // ---------- Themes ----------
-const palettes = {
-  dark: {
-    bg: '#0E1117', fg: '#E6EDF3', gutter: '#5C6573', gutterBg: '#0E1117', activeLine: '#161B24',
-    selection: '#2A3B5C', cursor: '#7CF5C3', match: '#2C3E2F',
-    kw: '#FF7AB2', str: '#A5E075', num: '#FFB86B', com: '#5F6B7C', fn: '#7CC7FF', type: '#C9A2FF',
-    prop: '#9CDCFE', op: '#E6EDF3', bool: '#FFB86B', def: '#7CF5C3',
-  },
-  light: {
-    bg: '#FFFFFF', fg: '#1F2328', gutter: '#A0A7B1', gutterBg: '#FFFFFF', activeLine: '#F4F6FA',
-    selection: '#CFE3FF', cursor: '#0A7D5A', match: '#E3F4E8',
-    kw: '#C2185B', str: '#2E7D32', num: '#D35400', com: '#9AA3AE', fn: '#1565C0', type: '#7B1FA2',
-    prop: '#00695C', op: '#1F2328', bool: '#D35400', def: '#0A7D5A',
-  },
+// The palette comes from the app (src/theme.ts) so editor and UI always match.
+const fallbackPalette = {
+  bg: '#0D1117', fg: '#E6EDF3', gutter: '#6E7681', gutterBg: '#0D1117', activeLine: '#161B22',
+  selection: '#264F78', cursor: '#58A6FF', match: '#23452C',
+  kw: '#FF7B72', str: '#A5D6FF', num: '#79C0FF', com: '#8B949E', fn: '#D2A8FF', type: '#FFA657',
+  prop: '#79C0FF', op: '#FF7B72', bool: '#79C0FF', def: '#FFA657',
+  tooltipBg: '#161B22', tooltipBorder: '#30363D', panelBg: '#161B22', panelBorder: '#30363D',
 };
+const FALLBACK_FONT = "ui-monospace, Menlo, 'Roboto Mono', monospace";
 
-function makeTheme(name, fontSize) {
-  const p = palettes[name] || palettes.dark;
+function loadFont(url) {
+  let link = document.getElementById('cm-font');
+  if (!url) { if (link) link.remove(); return; }
+  if (link && link.getAttribute('href') === url) return;
+  if (!link) { link = document.createElement('link'); link.id = 'cm-font'; link.rel = 'stylesheet'; document.head.appendChild(link); }
+  link.onload = () => { if (document.fonts) document.fonts.ready.then(() => view.requestMeasure()); };
+  link.href = url;
+}
+
+function makeTheme(o) {
+  const p = { ...fallbackPalette, ...(o.palette || {}) };
+  const isDark = o.dark !== false;
+  const fontSize = o.fontSize || 14;
+  loadFont(o.fontUrl);
+  const family = o.fontFamily || FALLBACK_FONT;
   const theme = EditorView.theme({
     '&': { color: p.fg, backgroundColor: p.bg, height: '100%', fontSize: fontSize + 'px' },
     '.cm-scroller': {
-      fontFamily: "'JetBrains Mono', ui-monospace, Menlo, 'Roboto Mono', monospace",
+      fontFamily: family, fontVariantLigatures: o.ligatures ? 'contextual' : 'none',
       lineHeight: '1.6', overscrollBehavior: 'contain',
     },
     '.cm-content': { caretColor: p.cursor, padding: '10px 0 40vh 0' },
@@ -60,20 +68,20 @@ function makeTheme(name, fontSize) {
     '.cm-foldGutter .cm-gutterElement': { width: '12px', color: p.gutter },
     '.cm-selectionMatch': { backgroundColor: p.match },
     '&.cm-focused .cm-matchingBracket': { backgroundColor: p.match, outline: '1px solid ' + p.cursor + '66' },
-    '.cm-tooltip': { backgroundColor: name === 'dark' ? '#1A2030' : '#FFFFFF', border: '1px solid ' + (name === 'dark' ? '#2A3245' : '#E1E5EB'), borderRadius: '10px', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,.25)' },
-    '.cm-tooltip-autocomplete > ul': { fontFamily: "'JetBrains Mono', ui-monospace, monospace", maxHeight: '40vh' },
+    '.cm-tooltip': { backgroundColor: p.tooltipBg, color: p.fg, border: '1px solid ' + p.tooltipBorder, borderRadius: '10px', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,.25)' },
+    '.cm-tooltip-autocomplete > ul': { fontFamily: family, maxHeight: '40vh' },
     '.cm-tooltip-autocomplete > ul > li': { padding: '6px 10px !important', lineHeight: '1.4' },
     '.cm-tooltip-autocomplete > ul > li[aria-selected]': { backgroundColor: p.selection, color: p.fg },
     '.cm-completionIcon': { opacity: '.7' },
-    '.cm-panels': { backgroundColor: name === 'dark' ? '#141821' : '#F4F6FA', color: p.fg, borderTop: 'none' },
-    '.cm-panels.cm-panels-top': { borderBottom: '1px solid ' + (name === 'dark' ? '#232A38' : '#E1E5EB') },
+    '.cm-panels': { backgroundColor: p.panelBg, color: p.fg, borderTop: 'none' },
+    '.cm-panels.cm-panels-top': { borderBottom: '1px solid ' + p.panelBorder },
     '.cm-search': { padding: '8px', fontSize: '14px' },
     '.cm-search input, .cm-search button': { fontSize: '14px', borderRadius: '8px', padding: '4px 8px' },
     '.cm-textfield': { backgroundColor: p.bg, color: p.fg, border: '1px solid ' + p.gutter },
     '.cm-button': { backgroundImage: 'none', backgroundColor: p.activeLine, color: p.fg, border: '1px solid ' + p.gutter },
     '.cm-error-line': { backgroundColor: 'rgba(255, 90, 90, 0.14)' },
     '.cm-foldPlaceholder': { backgroundColor: p.activeLine, border: 'none', color: p.gutter },
-  }, { dark: name === 'dark' });
+  }, { dark: isDark });
 
   const hl = HighlightStyle.define([
     { tag: [t.keyword, t.controlKeyword, t.moduleKeyword, t.operatorKeyword, t.definitionKeyword], color: p.kw },
@@ -142,7 +150,7 @@ const completeC = new Compartment();
 const gutterC = new Compartment();
 const tabC = new Compartment();
 
-let opts = { language: 'javascript', theme: 'dark', fontSize: 14, wrap: false, autocomplete: true, lineNumbers: true, tabSize: 4 };
+let opts = { language: 'javascript', palette: null, dark: true, fontSize: 14, fontFamily: null, fontUrl: null, ligatures: false, wrap: false, autocomplete: true, lineNumbers: true, tabSize: 4 };
 let changeTimer = null;
 let suppress = false;
 
@@ -172,7 +180,7 @@ const view = new EditorView({
       errorField,
       keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap, ...foldKeymap, ...completionKeymap, indentWithTab]),
       langC.of(langExt('javascript')),
-      themeC.of(makeTheme('dark', 14)),
+      themeC.of(makeTheme({})),
       wrapC.of([]),
       completeC.of(completeExt(true)),
       tabC.of(tabExt(4)),
@@ -198,7 +206,8 @@ function applyOptions(o) {
   opts = { ...opts, ...o };
   const effects = [];
   if (o.language && o.language !== prev.language) effects.push(langC.reconfigure(langExt(opts.language)));
-  if ((o.theme && o.theme !== prev.theme) || (o.fontSize && o.fontSize !== prev.fontSize)) effects.push(themeC.reconfigure(makeTheme(opts.theme, opts.fontSize)));
+  const themeKeys = ['palette', 'dark', 'fontSize', 'fontFamily', 'fontUrl', 'ligatures'];
+  if (themeKeys.some((k) => k in o && JSON.stringify(o[k]) !== JSON.stringify(prev[k]))) effects.push(themeC.reconfigure(makeTheme(opts)));
   if (o.wrap !== undefined) effects.push(wrapC.reconfigure(opts.wrap ? EditorView.lineWrapping : []));
   if (o.autocomplete !== undefined) effects.push(completeC.reconfigure(completeExt(opts.autocomplete)));
   if (o.lineNumbers !== undefined) effects.push(gutterC.reconfigure(gutterExt(opts.lineNumbers)));

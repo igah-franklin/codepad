@@ -6,6 +6,7 @@ import React, { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ActionSheet, IconButton, LangBadge, TextPrompt, Toast, timeAgo, useHaptics, useToast, type SheetAction } from '@/components/ui';
+import { ALL_CHALLENGES } from '@/challenges';
 import { useRunner } from '@/runner';
 import { useStore, type Project } from '@/store';
 import { langMeta, mono, useTheme, type Language } from '@/theme';
@@ -21,7 +22,8 @@ export default function Home() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const h = useHaptics();
-  const { projects, createProject, updateProject, deleteProject, duplicateProject } = useStore();
+  const { projects, createProject, updateProject, deleteProject, duplicateProject, solved } = useStore();
+  const solvedCount = useMemo(() => ALL_CHALLENGES.filter((c) => solved[c.id]).length, [solved]);
   const { py } = useRunner();
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
@@ -129,6 +131,18 @@ export default function Home() {
           <Text style={[styles.quickText, { color: t.text }]}>Paste</Text>
         </Pressable>
       </View>
+
+      <Pressable onPress={() => router.push('/challenges')} accessibilityLabel="Coding challenges"
+        style={({ pressed }) => [styles.challenges, { backgroundColor: pressed ? t.surface2 : t.surface, borderColor: t.border }]}>
+        <View style={[styles.challengeIcon, { backgroundColor: t.accent + '22' }]}>
+          <Ionicons name="trophy-outline" size={18} color={t.accent} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.quickText, { color: t.text, fontSize: 14 }]}>Coding challenges</Text>
+          <Text style={{ color: t.textDim, fontSize: 12, marginTop: 1 }}>Easy → Interview · {solvedCount}/{ALL_CHALLENGES.length} solved</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={t.textFaint} />
+      </Pressable>
 
       <View style={[styles.search, { backgroundColor: t.surface, borderColor: t.border }]}>
         <Ionicons name="search" size={18} color={t.textFaint} />
@@ -241,6 +255,8 @@ const styles = StyleSheet.create({
   quickRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
   quick: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth },
   quickText: { fontWeight: '600', fontSize: 13 },
+  challenges: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10, paddingVertical: 11, paddingHorizontal: 12, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth },
+  challengeIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   search: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18, borderRadius: 14, paddingHorizontal: 14, borderWidth: StyleSheet.hairlineWidth },
   searchInput: { flex: 1, paddingVertical: 12, fontSize: 15 },
   filterRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 22, marginBottom: 12 },

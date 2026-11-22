@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton, TextPrompt, useHaptics } from '@/components/ui';
 import { useRunner } from '@/runner';
 import { defaultSettings, useStore, type Settings } from '@/store';
-import { mono, useTheme } from '@/theme';
+import { darkThemeById, darkThemes, editorFontById, editorFonts, mono, useTheme, type Theme } from '@/theme';
 import { PYODIDE_VERSION } from '@/web/runnerHtml';
 
 function Segmented<T extends string | number>({ value, options, onChange }: { value: T; options: { label: string; value: T }[]; onChange: (v: T) => void }) {
@@ -22,6 +22,32 @@ function Segmented<T extends string | number>({ value, options, onChange }: { va
         </Pressable>
       ))}
     </View>
+  );
+}
+
+function ThemeSwatch({ theme, selected, onPress }: { theme: Theme; selected: boolean; onPress: () => void }) {
+  const t = useTheme();
+  const e = theme.editor;
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${theme.name} theme`} accessibilityState={{ selected }}
+      style={({ pressed }) => [styles.swatch, { borderColor: selected ? t.accent : t.border, opacity: pressed ? 0.8 : 1 }]}>
+      <View style={[styles.swatchPreview, { backgroundColor: e.bg }]}>
+        <View style={{ flexDirection: 'row', gap: 4 }}>
+          <View style={[styles.bar, { width: 16, backgroundColor: e.kw }]} />
+          <View style={[styles.bar, { width: 26, backgroundColor: e.fn }]} />
+        </View>
+        <View style={{ flexDirection: 'row', gap: 4, marginLeft: 8 }}>
+          <View style={[styles.bar, { width: 20, backgroundColor: e.str }]} />
+          <View style={[styles.bar, { width: 12, backgroundColor: e.num }]} />
+        </View>
+        <View style={[styles.bar, { width: 30, backgroundColor: e.com }]} />
+        <View style={[styles.swatchDot, { backgroundColor: theme.accent }]} />
+      </View>
+      <View style={[styles.swatchLabel, { backgroundColor: selected ? t.surface2 : t.surface }]}>
+        {selected && <Ionicons name="checkmark-circle" size={13} color={t.accent} />}
+        <Text style={{ color: selected ? t.text : t.textDim, fontSize: 11, fontWeight: '700', flexShrink: 1 }} numberOfLines={1}>{theme.name}</Text>
+      </View>
+    </Pressable>
   );
 }
 
@@ -67,6 +93,40 @@ export default function SettingsScreen() {
           <Row icon="contrast-outline" title="Theme">
             <Segmented value={settings.theme} onChange={set('theme')} options={[{ label: 'Dark', value: 'dark' }, { label: 'Light', value: 'light' }, { label: 'Auto', value: 'system' }]} />
           </Row>
+          <View style={[styles.block, { borderBottomColor: t.border }]}>
+            <View style={styles.blockHead}>
+              <View style={[styles.rowIcon, { backgroundColor: t.surface2 }]}><Ionicons name="color-palette-outline" size={17} color={t.text} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>Dark theme</Text>
+                <Text style={{ color: t.textDim, fontSize: 12, marginTop: 2 }}>{darkThemeById(settings.darkTheme).name}{settings.theme === 'light' ? ' · used in Dark and Auto' : ''}</Text>
+              </View>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
+              {darkThemes.map((th) => (
+                <ThemeSwatch key={th.id} theme={th} selected={darkThemeById(settings.darkTheme).id === th.id} onPress={() => { h.tap(); set('darkTheme')(th.id); }} />
+              ))}
+            </ScrollView>
+          </View>
+          <View style={[styles.block, { borderBottomColor: t.border }]}>
+            <View style={styles.blockHead}>
+              <View style={[styles.rowIcon, { backgroundColor: t.surface2 }]}><Ionicons name="code-slash-outline" size={17} color={t.text} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>Editor font</Text>
+                <Text style={{ color: t.textDim, fontSize: 12, marginTop: 2 }}>{editorFontById(settings.editorFont).name} · downloads once, falls back to system offline</Text>
+              </View>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
+              {editorFonts.map((f) => {
+                const on = editorFontById(settings.editorFont).id === f.id;
+                return (
+                  <Pressable key={f.id} onPress={() => { h.tap(); set('editorFont')(f.id); }} accessibilityRole="button" accessibilityState={{ selected: on }}
+                    style={[styles.fontChip, { backgroundColor: on ? t.text : t.surface2, borderColor: on ? t.text : t.border }]}>
+                    <Text style={{ color: on ? t.bg : t.textDim, fontSize: 13, fontWeight: '700' }}>{f.name}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
           <Row icon="text-outline" title="Font size" desc="Editor and console">
             <View style={styles.stepper}>
               <IconButton name="remove" label="Smaller" size={18} onPress={() => set('fontSize')(Math.max(10, settings.fontSize - 1))} style={{ backgroundColor: t.surface2, width: 34, height: 34 }} />
@@ -132,6 +192,15 @@ const styles = StyleSheet.create({
   seg: { flexDirection: 'row', padding: 3, borderRadius: 10 },
   segBtn: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8 },
   stepper: { flexDirection: 'row', alignItems: 'center' },
+  block: { paddingTop: 12, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  blockHead: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14 },
+  strip: { gap: 10, paddingHorizontal: 14, paddingTop: 12 },
+  swatch: { width: 104, borderRadius: 12, borderWidth: 2, overflow: 'hidden' },
+  swatchPreview: { height: 58, padding: 9, gap: 6 },
+  swatchDot: { position: 'absolute', right: 8, bottom: 8, width: 12, height: 12, borderRadius: 6 },
+  swatchLabel: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6 },
+  bar: { height: 5, borderRadius: 3 },
+  fontChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth },
   action: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 15, justifyContent: 'center' },
   reset: { marginTop: 22, padding: 15, borderRadius: 16, alignItems: 'center', borderWidth: StyleSheet.hairlineWidth },
 });

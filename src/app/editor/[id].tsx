@@ -9,6 +9,8 @@ import {
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getChallenge } from '@/challenges';
+import { PASS_SENTINEL, withHarness } from '@/challenges/harness';
 import { CodeEditor, type CodeEditorHandle } from '@/components/CodeEditor';
 import { ConsoleView, eventsToText } from '@/components/ConsoleView';
 import { KeyBar } from '@/components/KeyBar';
@@ -37,10 +39,13 @@ export default function EditorScreen() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const h = useHaptics();
-  const { getProject, updateProject, deleteProject, duplicateProject, settings, projects } = useStore();
+  const { getProject, updateProject, deleteProject, duplicateProject, settings, projects, markSolved } = useStore();
   const runner = useRunner();
   const project = useMemo(() => projects.find((p) => p.id === id), [projects, id]);
   const initial = useRef(getProject(id!)).current;
+  const challenge = getChallenge(project?.challengeId);
+  const passedRef = useRef(false);
+  const tailRef = useRef('');
 
   const editor = useRef<CodeEditorHandle>(null);
   const [events, setEvents] = useState<OutputEvent[]>([]);
@@ -159,16 +164,27 @@ export default function EditorScreen() {
     if (snap === 'min') animateTo('half');
     setElapsed(0);
     setRun({ s: 'running', startedAt: Date.now() });
-    runner.run(project.language, code, stdin, {
-      onEvents: pushEvents,
+    passedRef.current = false;
+    tailRef.current = '';
+    const program = challenge ? withHarness(challenge, project.language, code) : code;
+    runner.run(project.language, program, stdin, {
+      onEvents: (evs) => {
+        if (challenge && !passedRef.current) {
+          // output can arrive in chunks, so look across event boundaries
+          tailRef.current = (tailRef.current + evs.map((e) => e.text).join('\n')).slice(-400);
+          if (tailRef.current.includes(PASS_SENTINEL)) passedRef.current = true;
+        }
+        pushEvents(evs);
+      },
       onDone: (result) => {
         setRun({ s: 'done', result });
+        if (challenge && result.ok && passedRef.current) { markSolved(challenge.id); show('Challenge solved! 🎉'); }
         if (result.ok) h.success(); else if (result.reason !== 'stopped') h.error();
         if (result.line) setTimeout(() => editor.current?.gotoLine(result.line!, true), 150);
         if (result.reason === 'crashed') pushEvents([{ kind: 'error', text: 'The runtime ran out of memory and was restarted. Try again with smaller data.' }]);
       },
     });
-  }, [project, updateProject, settings.clearOnRun, pushEvents, snap, animateTo, runner, h]);
+  }, [project, updateProject, settings.clearOnRun, pushEvents, snap, animateTo, runner, h, challenge, markSolved, show]);
 
   const onRunPress = useCallback(async () => {
     if (run.s === 'running') { h.tap(); runner.stop(); return; }
@@ -355,6 +371,7 @@ export default function EditorScreen() {
       <ActionSheet
         visible={menu} onClose={() => setMenu(false)} title={`${project.name}.${meta.ext}`} subtitle={`${meta.label} · ${cursor.lines} lines`}
         actions={[
+          ...(challenge ? [{ label: 'View challenge', icon: 'trophy-outline' as const, onPress: () => router.push({ pathname: '/challenges/problem/[id]', params: { id: challenge.id } }) }] : []),
           { label: 'Find & replace', icon: 'search-outline', onPress: () => editor.current?.command('search') },
           { label: 'Rename', icon: 'create-outline', onPress: () => setRenaming(true) },
           { label: 'Duplicate', icon: 'copy-outline', onPress: () => { const d = duplicateProject(project.id); if (d) router.replace({ pathname: '/editor/[id]', params: { id: d.id } }); } },

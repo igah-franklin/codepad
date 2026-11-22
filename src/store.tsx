@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { TEMPLATES, starterCode } from './templates';
-import type { Language } from './theme';
+import { DEFAULT_DARK_THEME, DEFAULT_EDITOR_FONT, type Language } from './theme';
 
 export type Project = {
   id: string;
@@ -10,12 +10,15 @@ export type Project = {
   code: string;
   stdin: string;
   pinned?: boolean;
+  challengeId?: string; // set when the file was opened from a coding challenge
   createdAt: number;
   updatedAt: number;
 };
 
 export type Settings = {
   theme: 'dark' | 'light' | 'system';
+  darkTheme: string;
+  editorFont: string;
   fontSize: number;
   wrap: boolean;
   autocomplete: boolean;
@@ -30,6 +33,8 @@ export type Settings = {
 
 export const defaultSettings: Settings = {
   theme: 'dark',
+  darkTheme: DEFAULT_DARK_THEME,
+  editorFont: DEFAULT_EDITOR_FONT,
   fontSize: 14,
   wrap: false,
   autocomplete: true,
@@ -47,16 +52,21 @@ type Store = {
   projects: Project[];
   settings: Settings;
   updateSettings: (p: Partial<Settings>) => void;
-  createProject: (p: { language: Language; name?: string; code?: string; stdin?: string }) => Project;
+  createProject: (p: { language: Language; name?: string; code?: string; stdin?: string; challengeId?: string }) => Project;
   updateProject: (id: string, p: Partial<Omit<Project, 'id'>>) => void;
   deleteProject: (id: string) => void;
   duplicateProject: (id: string) => Project | null;
   getProject: (id: string) => Project | undefined;
+  /** challengeId -> timestamp when all tests first passed */
+  solved: Record<string, number>;
+  markSolved: (challengeId: string) => void;
+  resetProgress: () => void;
 };
 
 const Ctx = createContext<Store | null>(null);
 const K_PROJECTS = 'codepad.projects.v1';
 const K_SETTINGS = 'codepad.settings.v1';
+const K_SOLVED = 'codepad.solved.v1';
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
@@ -80,15 +90,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [solved, setSolved] = useState<Record<string, number>>({});
   const projectsRef = useRef<Project[]>([]);
   projectsRef.current = projects;
 
   useEffect(() => {
     (async () => {
       try {
-        const [p, s] = await Promise.all([AsyncStorage.getItem(K_PROJECTS), AsyncStorage.getItem(K_SETTINGS)]);
+        const [p, s, d] = await Promise.all([AsyncStorage.getItem(K_PROJECTS), AsyncStorage.getItem(K_SETTINGS), AsyncStorage.getItem(K_SOLVED)]);
         setProjects(p ? JSON.parse(p) : seed());
         if (s) setSettings({ ...defaultSettings, ...JSON.parse(s) });
+        if (d) setSolved(JSON.parse(d));
       } catch {
         setProjects(seed());
       }
@@ -109,9 +121,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (ready) AsyncStorage.setItem(K_SETTINGS, JSON.stringify(settings)).catch(() => {});
   }, [settings, ready]);
 
+  useEffect(() => {
+    if (ready) AsyncStorage.setItem(K_SOLVED, JSON.stringify(solved)).catch(() => {});
+  }, [solved, ready]);
+  const markSolved = useCallback((cid: string) => setSolved((s) => (s[cid] ? s : { ...s, [cid]: Date.now() })), []);
+  const resetProgress = useCallback(() => setSolved({}), []);
+
   const updateSettings = useCallback((p: Partial<Settings>) => setSettings((s) => ({ ...s, ...p })), []);
 
-  const createProject = useCallback<Store['createProject']>(({ language, name, code, stdin }) => {
+  const createProject = useCallback<Store['createProject']>(({ language, name, code, stdin, challengeId }) => {
     const now = Date.now();
     const proj: Project = {
       id: uid(),
@@ -119,6 +137,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       language,
       code: code ?? starterCode[language],
       stdin: stdin || '',
+      ...(challengeId ? { challengeId } : {}),
       createdAt: now,
       updatedAt: now,
     };
@@ -136,14 +155,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const duplicateProject = useCallback((id: string) => {
     const src = projectsRef.current.find((x) => x.id === id);
     if (!src) return null;
-    return createProject({ language: src.language, name: src.name + '_copy', code: src.code, stdin: src.stdin });
+    return createProject({ language: src.language, name: src.name + '_copy', code: src.code, stdin: src.stdin, challengeId: src.challengeId });
   }, [createProject]);
 
   const getProject = useCallback((id: string) => projectsRef.current.find((x) => x.id === id), []);
 
   const value = useMemo(
-    () => ({ ready, projects, settings, updateSettings, createProject, updateProject, deleteProject, duplicateProject, getProject }),
-    [ready, projects, settings, updateSettings, createProject, updateProject, deleteProject, duplicateProject, getProject],
+    () => ({ ready, projects, settings, updateSettings, createProject, updateProject, deleteProject, duplicateProject, getProject, solved, markSolved, resetProgress }),
+    [ready, projects, settings, updateSettings, createProject, updateProject, deleteProject, duplicateProject, getProject, solved, markSolved, resetProgress],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

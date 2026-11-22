@@ -2,7 +2,7 @@ import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef,
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import type { Settings } from '../store';
-import type { Language, Theme } from '../theme';
+import { editorFontById, type Language, type Theme } from '../theme';
 import { EDITOR_HTML } from '../web/editorHtml';
 
 export type CodeEditorHandle = {
@@ -40,9 +40,14 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
     web.current?.injectJavaScript(`window.__cmHandle && window.__cmHandle(${JSON.stringify(msg)});true;`);
   }, []);
 
+  const font = editorFontById(settings.editorFont);
   const options = {
     language,
-    theme: theme.mode,
+    palette: theme.editor,
+    dark: theme.mode === 'dark',
+    fontFamily: font.css,
+    fontUrl: font.google ? `https://fonts.googleapis.com/css2?family=${font.google}&display=swap` : null,
+    ligatures: !!font.ligatures,
     fontSize: settings.fontSize,
     wrap: settings.wrap,
     autocomplete: settings.autocomplete,

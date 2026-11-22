@@ -20,6 +20,9 @@ function Shell() {
             <Stack.Screen name="editor/[id]" options={{ gestureEnabled: true }} />
             <Stack.Screen name="templates" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
             <Stack.Screen name="settings" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="challenges/index" />
+            <Stack.Screen name="challenges/module/[key]" />
+            <Stack.Screen name="challenges/problem/[id]" />
           </Stack>
         </RunnerProvider>
       )}
